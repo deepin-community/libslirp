@@ -1,0 +1,3 @@
+version=4
+opts=filenamemangle=s/.*\/libslirp-v(\d\S+)\.tar\.bz2/libslirp-$1\.tar\.bz2/g \
+  https://gitlab.freedesktop.org/slirp/libslirp/tags?sort=updated_desc .*/archive/v(\d[^-]+)/.*\.tar\.bz2.*

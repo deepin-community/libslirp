@@ -1,0 +1,86 @@
+libslirp (4.6.1-1) unstable; urgency=medium
+
+  * import v4.6.1 upstream release
+    Closes: #989993, CVE-2021-3592
+    Closes: #989994, CVE-2021-3593
+    Closes: #989995, CVE-2021-3594
+    Closes: #989996, CVE-2021-3595
+  * Updated d/libslirp0.symbols with new symbols (from 4.5 release)
+  * Updated Standards-Version to 4.6.0 (no changes)
+  * Bump debhelper-compat to 13
+  * Remove version from meson build-dependency (buster+)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 19 Aug 2021 16:39:43 +0300
+
+libslirp (4.4.0-1) unstable; urgency=medium
+
+  * new upstream release
+    Closes: CVE-2020-29129, CVE-2020-29130
+    (2e1dcbc0c2af64fcb17009eaf2ceedd81be2b27f)
+  * bump standards-version to 4.5.1 (no changes)
+  * switch from d/compat to debhelper-compat=12
+  * use secure (https) URL in d/copyright
+  * d/control: Rules-Requires-Root: no
+  * add Build-Depends-Package field to d/libslirp0.symbols
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 19 Dec 2020 18:36:33 +0300
+
+libslirp (4.3.1-1) unstable; urgency=medium
+
+  * new upstream release
+   - fix CVE-2020-10756 - Drop bogus IPv6 messages
+     that could lead to data leakage
+   - various coverity scan errors fixed
+  * remove fixes which are now included upstream
+  * use versioned build-depends on meson (>= 0.49) as per upstream
+  * fix slirp_new version in d/libslirp0.symbols
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 03 Jul 2020 18:47:12 +0300
+
+libslirp (4.2.0-2) unstable; urgency=high
+
+  * slirp-fix-use-afte-free-in-ip_reass-CVE-2020-1983.patch
+    another use-after-free in ip_reass() fix
+    Closes: CVE-2020-1983
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 21 Apr 2020 09:47:57 +0300
+
+libslirp (4.2.0-1) unstable; urgency=medium
+
+  * new upstream release (Closes: CVE-2020-8608)
+  * remove all patches (everything's included upstream)
+  * update symbols file
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 14 Apr 2020 17:37:37 +0300
+
+libslirp (4.1.0-2) unstable; urgency=high
+
+  * Closes: #949084, CVE-2020-7039:
+    OOB buffer access while emulating tcp protocols in tcp_emu()
+    This includes 3 patches:
+     tcp_emu-fix-OOB-access-CVE-2020-7039.patch
+     slirp-use-correct-size-while-emulating-commands-CVE-2020-7039.patch
+     slirp-use-correct-size-while-emulating-IRC-commands-CVE-2020-7039.patch
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 17 Jan 2020 14:24:00 +0300
+
+libslirp (4.1.0-1) unstable; urgency=medium
+
+  * new upstream release (4.1.0)
+  * remove all patches (now everything is included upstream)
+  * included 2 new symbols to libslirp0.symbols
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 07 Dec 2019 16:10:42 +0300
+
+libslirp (4.0.0-2) unstable; urgency=medium
+
+  * fork_exec-correctly-parse-command-lines-that-contain-spaces.patch
+  * bump Standards-Version to 4.4.1 (no changes)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 28 Nov 2019 13:58:14 +0300
+
+libslirp (4.0.0-1) unstable; urgency=medium
+
+  * initial release
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 27 Aug 2019 15:55:43 +0300
