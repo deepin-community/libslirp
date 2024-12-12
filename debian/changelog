@@ -1,3 +1,33 @@
+libslirp (4.8.0-1) unstable; urgency=medium
+
+  [ Michael Tokarev ]
+  * new upstream release
+    Closes: #963797 (dns does not work without resolv.conf)
+  * d/changelog: add Closes: #1003450 to the previous changelog entry
+  * d/watch: update for gitlab changes
+  * d/rules: stop overriding dh_auto_confogure -Ddisable_tests
+    (not needed anymore)
+  * d/control: Standards-Version: 4.7.0 (no changes needed)
+
+  [ Janitor ]
+  * Use versioned copyright format URI.
+  * Set upstream metadata fields: Bug-Database, Bug-Submit.
+
+  [ Helmut Grohne ]
+  * Fix FTCBFS: Disable tests for DEB_BUILD_OPTIONS=nocheck. (Closes: #981893)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 16 Jun 2024 18:17:55 +0300
+
+libslirp (4.7.0-1) unstable; urgency=medium
+
+  * new upstream release
+    Closes: #1003450 (dns does not work with IPv6-only nameservers)
+  * libslirp0.symbols: add slirp_handle_timer
+  * add gbp.conf (list just upstream-vcs-tag=);
+    switched to default gbp naming scheme in tags and branches
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 01 May 2022 00:13:57 +0300
+
 libslirp (4.6.1-1) unstable; urgency=medium
 
   * import v4.6.1 upstream release
