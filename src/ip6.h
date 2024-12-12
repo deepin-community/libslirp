@@ -10,6 +10,8 @@
 #include <glib.h>
 #include <string.h>
 
+#include "util.h"
+
 #define ALLNODES_MULTICAST \
     {                      \
         .s6_addr = {       \
@@ -98,11 +100,13 @@
         }            \
     }
 
+/* Check that two IPv6 addresses are equal */
 static inline bool in6_equal(const struct in6_addr *a, const struct in6_addr *b)
 {
     return memcmp(a, b, sizeof(*a)) == 0;
 }
 
+/* Check that two IPv6 addresses are equal in their network part */
 static inline bool in6_equal_net(const struct in6_addr *a,
                                  const struct in6_addr *b, int prefix_len)
 {
@@ -118,6 +122,7 @@ static inline bool in6_equal_net(const struct in6_addr *a,
            b->s6_addr[prefix_len / 8] >> (8 - (prefix_len % 8));
 }
 
+/* Check that two IPv6 addresses are equal in their machine part */
 static inline bool in6_equal_mach(const struct in6_addr *a,
                                   const struct in6_addr *b, int prefix_len)
 {
@@ -136,24 +141,28 @@ static inline bool in6_equal_mach(const struct in6_addr *a,
            (b->s6_addr[prefix_len / 8] & ((1U << (8 - (prefix_len % 8))) - 1));
 }
 
-
+/* Check that the IPv6 is equal to the virtual router */
 #define in6_equal_router(a)                                          \
     ((in6_equal_net(a, &slirp->vprefix_addr6, slirp->vprefix_len) && \
       in6_equal_mach(a, &slirp->vhost_addr6, slirp->vprefix_len)) || \
      (in6_equal_net(a, &(struct in6_addr)LINKLOCAL_ADDR, 64) &&      \
       in6_equal_mach(a, &slirp->vhost_addr6, 64)))
 
+/* Check that the IPv6 is equal to the virtual DNS server */
 #define in6_equal_dns(a)                                                   \
     ((in6_equal_net(a, &slirp->vprefix_addr6, slirp->vprefix_len) &&       \
       in6_equal_mach(a, &slirp->vnameserver_addr6, slirp->vprefix_len)) || \
      (in6_equal_net(a, &(struct in6_addr)LINKLOCAL_ADDR, 64) &&            \
       in6_equal_mach(a, &slirp->vnameserver_addr6, 64)))
 
+/* Check that the IPv6 is equal to the host */
 #define in6_equal_host(a) (in6_equal_router(a) || in6_equal_dns(a))
 
+/* Check that the IPv6 is within the sollicited node multicast network */
 #define in6_solicitednode_multicast(a) \
     (in6_equal_net(a, &(struct in6_addr)SOLICITED_NODE_PREFIX, 104))
 
+/* Check that the IPv6 is zero */
 #define in6_zero(a) (in6_equal(a, &(struct in6_addr)ZERO_ADDR))
 
 /* Compute emulated host MAC address from its ipv6 address */
@@ -176,14 +185,15 @@ static inline void in6_compute_ethaddr(struct in6_addr ip,
  * Structure of an internet header, naked of options.
  */
 struct ip6 {
-#if G_BYTE_ORDER == G_BIG_ENDIAN
-    uint32_t ip_v : 4, /* version */
-        ip_tc_hi : 4, /* traffic class */
-        ip_tc_lo : 4, ip_fl_hi : 4, /* flow label */
-        ip_fl_lo : 16;
+#if (G_BYTE_ORDER == G_BIG_ENDIAN) && !defined(_MSC_VER)
+    uint8_t ip_v : 4, /* version */
+         ip_tc_hi : 4; /* traffic class */
+    uint8_t ip_tc_lo : 4, ip_fl_hi : 4; /* flow label */
 #else
-    uint32_t ip_tc_hi : 4, ip_v : 4, ip_fl_hi : 4, ip_tc_lo : 4, ip_fl_lo : 16;
+    uint8_t ip_tc_hi : 4, ip_v : 4;
+    uint8_t ip_fl_hi : 4, ip_tc_lo : 4;
 #endif
+    uint16_t ip_fl_lo;
     uint16_t ip_pl; /* payload length */
     uint8_t ip_nh; /* next header */
     uint8_t ip_hl; /* hop limit */

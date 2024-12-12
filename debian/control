@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Debian QEMU Team <pkg-qemu-devel@lists.alioth.debian.org>
 Uploaders: Michael Tokarev <mjt@tls.msk.ru>
 Build-Depends: debhelper-compat (= 13), libglib2.0-dev, meson, ninja-build
-Standards-Version: 4.6.0
+Standards-Version: 4.7.0
 Rules-Requires-Root: no
 Homepage: https://gitlab.freedesktop.org/slirp/libslirp
 Vcs-Browser: https://salsa.debian.org/qemu-team/libslirp

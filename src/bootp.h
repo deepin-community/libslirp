@@ -71,6 +71,7 @@
 #define RFC2132_MAX_SIZE 57
 #define RFC2132_RENEWAL_TIME 58
 #define RFC2132_REBIND_TIME 59
+#define RFC2132_VENDOR_CLASS_ID 60
 #define RFC2132_TFTP_SERVER_NAME 66
 
 #define DHCPDISCOVER 1
@@ -124,6 +125,7 @@ typedef struct {
 
 #define NB_BOOTP_CLIENTS 16
 
+/* Process a bootp packet from the guest */
 void bootp_input(struct mbuf *m);
 
 #endif

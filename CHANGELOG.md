@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.8.0] - TODO
+
+## Security
+
+  - tcp: Fix testing for last fragment
+  - tftp: Fix use-after-free
+
+### Added
+
+  - Add support for Haiku !123
+  - ncsi: Add manufacturer's ID !122
+  - ncsi: Add Get Version ID command !122
+  - ncsi: Add out-of-band ethernet address !125
+  - ncsi: Add Mellanox Get Mac Address handler !125
+  - icmp6: Add echo request forwarding support
+  - Add fuzzing infrastructure
+
+### Fixed
+
+  - Fix missing cleanups
+  - windows: Build fixes
+  - ipv6: Use target address from Neighbor Advertisement !129
+  - dns: Reject domain-search when any entry ends with ".."
+  - dns: Use localhost as dns when /etc/resolv.conf empty !130
+  - icmp: Handle ICMP packets as IPPROTO_IP on BSD !133
+  - eth: pad ethernet frames to 60 bytes #34
+
+### Removed
+
+  - windows: Bump the minimum Windows version to Windows 7
+
+## [4.7.0] - 2022-04-26
+
+### Added
+
+  - Allow disabling the internal DHCP server !22
+  - icmp: Support falling back on trying a SOCK_RAW socket !92
+  - Support Unix sockets in hostfwd !103
+  - IPv6 DNS proxying support !110
+  - bootp: add support for UEFI HTTP boot !111
+  - New callback that supports CFI better !117
+
+### Fixed
+
+  - dhcp: Always send DHCP_OPT_LEN bytes in options !97
+  - Fix Haiku build !98 !99
+  - Fix memory leak when using libresolv !100
+  - Ensure sin6_scope_id is zero for global addresses !102
+  - resolv: fix IPv6 resolution on Darwin !104
+  - socket: Initialize so_type in socreate !109
+  - Handle ECONNABORTED from recv !116
+
 ## [4.6.1] - 2021-06-18
 
 ### Fixed
@@ -172,7 +224,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - Standalone project, removing any QEMU dependency.
  - License clarifications.
 
-[Unreleased]: https://gitlab.freedesktop.org/slirp/libslirp/compare/v4.6.1...master
+[Unreleased]: https://gitlab.freedesktop.org/slirp/libslirp/compare/v4.8.0...master
+[4.8.0]: https://gitlab.freedesktop.org/slirp/libslirp/compare/v4.7.0...v4.8.0
+[4.7.0]: https://gitlab.freedesktop.org/slirp/libslirp/compare/v4.6.1...v4.7.0
 [4.6.1]: https://gitlab.freedesktop.org/slirp/libslirp/compare/v4.6.0...v4.6.1
 [4.6.0]: https://gitlab.freedesktop.org/slirp/libslirp/compare/v4.5.0...v4.6.0
 [4.5.0]: https://gitlab.freedesktop.org/slirp/libslirp/compare/v4.4.0...v4.5.0

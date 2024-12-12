@@ -1,5 +1,5 @@
 project('libslirp', 'c',
-  version : '4.6.1',
+  version : '4.8.0',
   license : 'BSD-3-Clause',
   default_options : ['warning_level=1', 'c_std=gnu99'],
   meson_version : '>= 0.50',
@@ -16,14 +16,38 @@ conf.set('SLIRP_MAJOR_VERSION', major_version)
 conf.set('SLIRP_MINOR_VERSION', minor_version)
 conf.set('SLIRP_MICRO_VERSION', micro_version)
 
-full_version = run_command('build-aux/git-version-gen',
-                           '@0@/.tarball-version'.format(meson.current_source_dir()),
-                           check : true).stdout().strip()
-if full_version.startswith('UNKNOWN')
+want_ossfuzz = get_option('oss-fuzz')
+want_libfuzzer = get_option('llvm-fuzz')
+fuzz_reproduce = get_option('fuzz-reproduce')
+if want_ossfuzz and want_libfuzzer
+  error('only one of oss-fuzz and llvm-fuzz can be specified')
+endif
+fuzzer_build = want_ossfuzz or want_libfuzzer
+if fuzzer_build and fuzz_reproduce
+  error('fuzzer build and reproducer build are mutually exclusive')
+endif
+
+cc = meson.get_compiler('c')
+add_languages('cpp', required : fuzzer_build)
+
+if get_option('static') == true
+  add_global_arguments('-static', language : 'c')
+endif
+
+if cc.get_argument_syntax() != 'msvc'
+  r = run_command('build-aux/git-version-gen',
+                  '@0@/.tarball-version'.format(meson.current_source_dir()),
+                  check : false)
+
+  full_version = r.stdout().strip()
+  if r.returncode() != 0 or full_version.startswith('UNKNOWN')
+    full_version = meson.project_version()
+  elif not full_version.startswith(meson.project_version())
+    error('meson.build project version @0@ does not match git-describe output @1@'
+          .format(meson.project_version(), full_version))
+  endif
+else
   full_version = meson.project_version()
-elif not full_version.startswith(meson.project_version())
-  error('meson.build project version @0@ does not match git-describe output @1@'
-        .format(meson.project_version(), full_version))
 endif
 conf.set_quoted('SLIRP_VERSION_STRING', full_version + get_option('version_suffix'))
 
@@ -44,16 +68,18 @@ conf.set_quoted('SLIRP_VERSION_STRING', full_version + get_option('version_suffi
 # - If the interface is the same as the previous version, but bugs are
 #   fixed, change:
 #      REVISION += 1
-lt_current = 3
-lt_revision = 1
-lt_age = 3
+lt_current = 4
+lt_revision = 0
+lt_age = 4
 lt_version = '@0@.@1@.@2@'.format(lt_current - lt_age, lt_age, lt_revision)
 
 host_system = host_machine.system()
 
-glib_dep = dependency('glib-2.0')
+glib_dep = dependency('glib-2.0', static : get_option('static'))
 
-cc = meson.get_compiler('c')
+add_project_arguments(cc.get_supported_arguments('-Wmissing-prototypes', '-Wstrict-prototypes',
+                                                 '-Wredundant-decls', '-Wundef', '-Wwrite-strings'),
+                      language: 'c', native: false)
 
 platform_deps = []
 
@@ -66,10 +92,15 @@ elif host_system == 'darwin'
   platform_deps += [
     cc.find_library('resolv')
   ]
+elif host_system == 'haiku'
+  platform_deps += [
+    cc.find_library('network')
+  ]
 endif
 
 cargs = [
   '-DG_LOG_DOMAIN="Slirp"',
+  '-DBUILDING_LIBSLIRP',
 ]
 
 if cc.check_header('valgrind/valgrind.h')
@@ -117,6 +148,23 @@ if cc.has_link_argument(vflag_test)
   vflag += vflag_test
 endif
 
+if fuzzer_build
+  cargs += '-fsanitize-coverage=edge,indirect-calls,trace-cmp'
+  cargs += '-fsanitize=fuzzer-no-link,address'
+  cargs += '-fprofile-instr-generate'
+  cargs += '-fcoverage-mapping'
+  cargs += '-g'
+  cargs += '-DSLIRP_DEBUG'
+  vflag += '-fsanitize=fuzzer-no-link,address'
+  vflag += '-fsanitize-coverage=edge,indirect-calls,trace-cmp'
+  vflag += '-fprofile-instr-generate'
+  vflag += '-fcoverage-mapping'
+endif
+if fuzz_reproduce
+  cargs += '-DSLIRP_DEBUG'
+  cargs += '-g'
+endif
+
 install_devel = not meson.is_subproject()
 
 configure_file(
@@ -127,14 +175,43 @@ configure_file(
   configuration : conf
 )
 
-lib = library('slirp', sources,
-  version : lt_version,
+if fuzzer_build or fuzz_reproduce
+  lib = static_library('slirp', sources,
+    c_args : cargs,
+    link_args : vflag,
+    link_depends : mapfile,
+    dependencies : [glib_dep, platform_deps],
+  )
+else
+  lib = library('slirp', sources,
+    version : lt_version,
+    c_args : cargs,
+    link_args : vflag,
+    link_depends : mapfile,
+    dependencies : [glib_dep, platform_deps],
+    install : install_devel or get_option('default_library') == 'shared',
+  )
+endif
+
+pingtest = executable('pingtest', 'test/pingtest.c',
+  link_with: [ lib ],
   c_args : cargs,
   link_args : vflag,
-  link_depends : mapfile,
-  dependencies : [glib_dep, platform_deps],
-  install : install_devel or get_option('default_library') == 'shared',
+  include_directories: [ 'src' ],
+  dependencies : [ platform_deps ]
 )
+
+test('ping', pingtest)
+
+ncsitest = executable('ncsitest', 'test/ncsitest.c',
+  link_with: [lib],
+  c_args : cargs,
+  link_args : vflag,
+  include_directories: ['src'],
+  dependencies: [glib_dep, platform_deps]
+)
+
+test('ncsi', ncsitest)
 
 if install_devel
   install_headers(['src/libslirp.h'], subdir : 'slirp')
@@ -156,7 +233,11 @@ else
   if get_option('default_library') == 'both'
     lib = lib.get_static_lib()
   endif
-  libslirp_dep = declare_dependency(
-    include_directories: include_directories('.', 'src'),
-    link_with: lib)
 endif
+
+libslirp_dep = declare_dependency(
+  link_with : lib,
+  include_directories : [include_directories('src'), include_directories('.')],
+)
+
+subdir('fuzzing')

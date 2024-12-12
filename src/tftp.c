@@ -104,6 +104,20 @@ static int tftp_session_find(Slirp *slirp, struct sockaddr_storage *srcsas,
     return -1;
 }
 
+void tftp_cleanup(Slirp *slirp)
+{
+    struct tftp_session *spt;
+    int k;
+
+    for (k = 0; k < TFTP_SESSIONS_MAX; k++) {
+        spt = &slirp->tftp_sessions[k];
+
+        if (tftp_session_in_use(spt)) {
+            tftp_session_terminate(spt);
+        }
+    }
+}
+
 static int tftp_read_data(struct tftp_session *spt, uint32_t block_nr,
                           uint8_t *buf, int len)
 {
@@ -248,11 +262,11 @@ static void tftp_send_next_block(struct tftp_session *spt,
                              spt->block_size);
 
     if (nobytes < 0) {
-        m_free(m);
-
         /* send "file not found" error back */
 
         tftp_send_error(spt, 1, "File not found", tp);
+
+        m_free(m);
 
         return;
     }
@@ -333,7 +347,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct sockaddr_storage *srcsas,
         return;
     }
 
-    if (strcasecmp(&tp->x.tp_buf[k], "octet") != 0) {
+    if (g_ascii_strcasecmp(&tp->x.tp_buf[k], "octet") != 0) {
         tftp_send_error(spt, 4, "Unsupported transfer mode", tp);
         return;
     }
@@ -377,7 +391,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct sockaddr_storage *srcsas,
         value = &tp->x.tp_buf[k];
         k += strlen(value) + 1;
 
-        if (strcasecmp(key, "tsize") == 0) {
+        if (g_ascii_strcasecmp(key, "tsize") == 0) {
             int tsize = atoi(value);
             struct stat stat_p;
 
@@ -393,7 +407,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct sockaddr_storage *srcsas,
             option_name[nb_options] = "tsize";
             option_value[nb_options] = tsize;
             nb_options++;
-        } else if (strcasecmp(key, "blksize") == 0) {
+        } else if (g_ascii_strcasecmp(key, "blksize") == 0) {
             int blksize = atoi(value);
 
             /* Accept blksize up to our maximum size */

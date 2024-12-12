@@ -35,7 +35,7 @@ struct ndp_rs { /* Router Solicitation Message */
 
 struct ndp_ra { /* Router Advertisement Message */
     uint8_t chl; /* Cur Hop Limit */
-#if G_BYTE_ORDER == G_BIG_ENDIAN
+#if (G_BYTE_ORDER == G_BIG_ENDIAN) && !defined(_MSC_VER)
     uint8_t M : 1, O : 1, reserved : 6;
 #else
     uint8_t reserved : 6, O : 1, M : 1;
@@ -55,14 +55,16 @@ struct ndp_ns { /* Neighbor Solicitation Message */
 G_STATIC_ASSERT(sizeof(struct ndp_ns) == 20);
 
 struct ndp_na { /* Neighbor Advertisement Message */
-#if G_BYTE_ORDER == G_BIG_ENDIAN
-    uint32_t R : 1, /* Router Flag */
+#if (G_BYTE_ORDER == G_BIG_ENDIAN) && !defined(_MSC_VER)
+    uint8_t R : 1, /* Router Flag */
         S : 1, /* Solicited Flag */
         O : 1, /* Override Flag */
-        reserved_hi : 5, reserved_lo : 24;
+        reserved_1 : 5;
 #else
-    uint32_t reserved_hi : 5, O : 1, S : 1, R : 1, reserved_lo : 24;
+    uint8_t reserved_1 : 5, O : 1, S : 1, R : 1;
 #endif
+    uint8_t reserved_2;
+    uint16_t reserved_3;
     struct in6_addr target; /* Target Address */
 };
 
@@ -94,6 +96,8 @@ struct icmp6 {
     } icmp6_body;
 #define icmp6_err icmp6_body.error_body
 #define icmp6_echo icmp6_body.echo
+#define icmp6_id icmp6_body.echo.id
+#define icmp6_seq icmp6_body.echo.seq_num
 #define icmp6_nrs icmp6_body.ndp_rs
 #define icmp6_nra icmp6_body.ndp_ra
 #define icmp6_nns icmp6_body.ndp_ns
@@ -115,15 +119,17 @@ G_STATIC_ASSERT(sizeof(struct icmp6) == 40);
 /*
  * NDP Options
  */
+SLIRP_PACKED_BEGIN
 struct ndpopt {
     uint8_t ndpopt_type; /* Option type */
     uint8_t ndpopt_len; /* /!\ In units of 8 octets */
     union {
         unsigned char linklayer_addr[6]; /* Source/Target Link-layer */
 #define ndpopt_linklayer ndpopt_body.linklayer_addr
-        struct prefixinfo { /* Prefix Information */
+        SLIRP_PACKED_BEGIN
+            struct prefixinfo { /* Prefix Information */
             uint8_t prefix_length;
-#if G_BYTE_ORDER == G_BIG_ENDIAN
+#if (G_BYTE_ORDER == G_BIG_ENDIAN) && !defined(_MSC_VER)
             uint8_t L : 1, A : 1, reserved1 : 6;
 #else
             uint8_t reserved1 : 6, A : 1, L : 1;
@@ -132,16 +138,17 @@ struct ndpopt {
             uint32_t pref_lt; /* Preferred Lifetime */
             uint32_t reserved2;
             struct in6_addr prefix;
-        } SLIRP_PACKED prefixinfo;
+        } SLIRP_PACKED_END prefixinfo;
 #define ndpopt_prefixinfo ndpopt_body.prefixinfo
-        struct rdnss {
+        SLIRP_PACKED_BEGIN
+            struct rdnss {
             uint16_t reserved;
             uint32_t lifetime;
             struct in6_addr addr;
-        } SLIRP_PACKED rdnss;
+        } SLIRP_PACKED_END rdnss;
 #define ndpopt_rdnss ndpopt_body.rdnss
     } ndpopt_body;
-} SLIRP_PACKED;
+} SLIRP_PACKED_END;
 
 /* NDP options type */
 #define NDPOPT_LINKLAYER_SOURCE 1 /* Source Link-Layer Address */
@@ -209,12 +216,31 @@ struct ndpopt {
 #define NDP_AdvPrefLifetime 14400
 #define NDP_AdvAutonomousFlag 1
 
-void icmp6_init(Slirp *slirp);
+/* Called from slirp_new, but after other initialization */
+void icmp6_post_init(Slirp *slirp);
+
+/* Called from slirp_cleanup */
 void icmp6_cleanup(Slirp *slirp);
+
+/* Process an ICMPv6 packet from the guest */
 void icmp6_input(struct mbuf *);
+
+/* Send an ICMPv6 error related to the given packet, using the given ICMPv6 type and code, using the given source */
 void icmp6_forward_error(struct mbuf *m, uint8_t type, uint8_t code, struct in6_addr *src);
+
+/* Similar to icmp6_forward_error, but use the link-local address as source */
 void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code);
-void ndp_send_ra(Slirp *slirp);
+
+/* Forward the ICMP packet to the guest (probably a ping reply) */
+void icmp6_reflect(struct mbuf *);
+
+/* Handle ICMP data from the ICMP socket, and forward it to the guest (using so_m as reference) */
+void icmp6_receive(struct socket *so);
+
+/* Send a neighbour sollicitation, to resolve the given IPV6 address */
 void ndp_send_ns(Slirp *slirp, struct in6_addr addr);
+
+/* Timer handler for router advertisement, to send it and reschedule the timer */
+void ra_timer_handler(Slirp *slirp, void *unused);
 
 #endif

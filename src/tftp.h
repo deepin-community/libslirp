@@ -20,11 +20,13 @@
 #define TFTP_FILENAME_MAX 512
 #define TFTP_BLOCKSIZE_MAX 1428
 
+SLIRP_PACKED_BEGIN
 struct tftphdr {
     struct udphdr udp;
     uint16_t tp_op;
-} SLIRP_PACKED;
+} SLIRP_PACKED_END;
 
+SLIRP_PACKED_BEGIN
 struct tftp_t {
     struct tftphdr hdr;
     union {
@@ -38,7 +40,7 @@ struct tftp_t {
         } tp_error;
         char tp_buf[TFTP_BLOCKSIZE_MAX + 2];
     } x;
-} SLIRP_PACKED;
+} SLIRP_PACKED_END;
 
 struct tftp_session {
     Slirp *slirp;
@@ -53,6 +55,10 @@ struct tftp_session {
     int timestamp;
 };
 
+/* Process TFTP packet coming from the guest */
 void tftp_input(struct sockaddr_storage *srcsas, struct mbuf *m);
+
+/* Clear remaining sessions */
+void tftp_cleanup(Slirp *slirp);
 
 #endif

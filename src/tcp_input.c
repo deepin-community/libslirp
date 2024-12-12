@@ -50,30 +50,10 @@
 /*
  * Insert segment ti into reassembly queue of tcp with
  * control block tp.  Return TH_FIN if reassembly now includes
- * a segment with FIN.  The macro form does the common case inline
- * (segment is the next to be received on an established connection,
- * and the queue is empty), avoiding linkage into and removal
- * from the queue and repetition of various conversions.
+ * a segment with FIN.
  * Set DELACK for segments received in order, but ack immediately
  * when segments are out of order (so fast retransmit can work).
  */
-#define TCP_REASS(tp, ti, m, so, flags)                                \
-    {                                                                  \
-        if ((ti)->ti_seq == (tp)->rcv_nxt && tcpfrag_list_empty(tp) && \
-            (tp)->t_state == TCPS_ESTABLISHED) {                       \
-            tp->t_flags |= TF_DELACK;                                  \
-            (tp)->rcv_nxt += (ti)->ti_len;                             \
-            flags = (ti)->ti_flags & TH_FIN;                           \
-            if (so->so_emu) {                                          \
-                if (tcp_emu((so), (m)))                                \
-                    sbappend(so, (m));                                 \
-            } else                                                     \
-                sbappend((so), (m));                                   \
-        } else {                                                       \
-            (flags) = tcp_reass((tp), (ti), (m));                      \
-            tp->t_flags |= TF_ACKNOW;                                  \
-        }                                                              \
-    }
 
 static void tcp_dooptions(struct tcpcb *tp, uint8_t *cp, int cnt,
                           struct tcpiphdr *ti);
@@ -82,9 +62,6 @@ static void tcp_xmit_timer(register struct tcpcb *tp, int rtt);
 static int tcp_reass(register struct tcpcb *tp, register struct tcpiphdr *ti,
                      struct mbuf *m)
 {
-    if (m)
-        M_DUP_DEBUG(m->slirp, m, 0, 0);
-
     register struct tcpiphdr *q;
     struct socket *so = tp->t_socket;
     int flags;
@@ -149,14 +126,14 @@ static int tcp_reass(register struct tcpcb *tp, register struct tcpiphdr *ti,
         }
         q = tcpiphdr_next(q);
         m = tcpiphdr_prev(q)->ti_mbuf;
-        remque(tcpiphdr2qlink(tcpiphdr_prev(q)));
+        slirp_remque(tcpiphdr2qlink(tcpiphdr_prev(q)));
         m_free(m);
     }
 
     /*
      * Stick new segment in its place.
      */
-    insque(tcpiphdr2qlink(ti), tcpiphdr2qlink(tcpiphdr_prev(q)));
+    slirp_insque(tcpiphdr2qlink(ti), tcpiphdr2qlink(tcpiphdr_prev(q)));
 
 present:
     /*
@@ -173,7 +150,7 @@ present:
     do {
         tp->rcv_nxt += ti->ti_len;
         flags = ti->ti_flags & TH_FIN;
-        remque(tcpiphdr2qlink(ti));
+        slirp_remque(tcpiphdr2qlink(ti));
         m = ti->ti_mbuf;
         ti = tcpiphdr_next(ti);
         if (so->so_state & SS_FCANTSENDMORE)
@@ -185,7 +162,7 @@ present:
             } else
                 sbappend(so, m);
         }
-    } while (ti != (struct tcpiphdr *)tp && ti->ti_seq == tp->rcv_nxt);
+    } while (!tcpfrag_list_end(ti, tp) && ti->ti_seq == tp->rcv_nxt);
     return (flags);
 }
 
@@ -218,6 +195,9 @@ void tcp_input(struct mbuf *m, int iphlen, struct socket *inso,
     DEBUG_CALL("tcp_input");
     DEBUG_ARG("m = %p  iphlen = %2d  inso = %p", m, iphlen, inso);
 
+    memset(&lhost, 0, sizeof(struct sockaddr_storage));
+    memset(&fhost, 0, sizeof(struct sockaddr_storage));
+
     /*
      * If called with m == 0, then we're continuing the connect
      */
@@ -239,11 +219,11 @@ void tcp_input(struct mbuf *m, int iphlen, struct socket *inso,
     switch (af) {
     case AF_INET:
         M_DUP_DEBUG(slirp, m, 0,
-            sizeof(struct tcpiphdr) - sizeof(struct ip) - sizeof(struct tcphdr));
+            sizeof(struct qlink) + sizeof(struct tcpiphdr) - sizeof(struct ip) - sizeof(struct tcphdr));
         break;
     case AF_INET6:
         M_DUP_DEBUG(slirp, m, 0,
-            sizeof(struct tcpiphdr) - sizeof(struct ip6) - sizeof(struct tcphdr));
+            sizeof(struct qlink) + sizeof(struct tcpiphdr) - sizeof(struct ip6) - sizeof(struct tcphdr));
         break;
     }
 
@@ -253,7 +233,7 @@ void tcp_input(struct mbuf *m, int iphlen, struct socket *inso,
     switch (af) {
     case AF_INET:
         if (iphlen > sizeof(struct ip)) {
-            ip_stripoptions(m, (struct mbuf *)0);
+            ip_stripoptions(m);
             iphlen = sizeof(struct ip);
         }
         /* XXX Check if too short */
@@ -420,7 +400,7 @@ findso:
         if ((tiflags & (TH_SYN | TH_FIN | TH_RST | TH_URG | TH_ACK)) != TH_SYN)
             goto dropwithreset;
 
-        so = socreate(slirp);
+        so = socreate(slirp, IPPROTO_TCP);
         tcp_attach(so);
 
         sbreserve(&so->so_snd, TCP_SNDSPACE);
@@ -761,6 +741,13 @@ findso:
      *	continue processing rest of data/controls, beginning with URG
      */
     case TCPS_SYN_SENT:
+        if (getenv("SLIRP_FUZZING") &&
+            /* Align seq numbers on what the fuzzing trace says */
+            tp->iss == 1 && ti->ti_ack != 0) {
+            tp->iss = ti->ti_ack - 1;
+            tp->snd_max = tp->iss + 1;
+        }
+
         if ((tiflags & TH_ACK) &&
             (SEQ_LEQ(ti->ti_ack, tp->iss) || SEQ_GT(ti->ti_ack, tp->snd_max)))
             goto dropwithreset;
@@ -961,6 +948,13 @@ findso:
      * send an RST.  una<=ack<=max
      */
     case TCPS_SYN_RECEIVED:
+        if (getenv("SLIRP_FUZZING") &&
+            /* Align seq numbers on what the fuzzing trace says */
+            tp->iss == 1 && ti->ti_ack != 0) {
+            tp->iss = ti->ti_ack - 1;
+            tp->snd_max = tp->iss + 1;
+            tp->snd_una = ti->ti_ack;
+        }
 
         if (SEQ_GT(tp->snd_una, ti->ti_ack) || SEQ_GT(ti->ti_ack, tp->snd_max))
             goto dropwithreset;
@@ -1274,7 +1268,27 @@ dodata:
      */
     if ((ti->ti_len || (tiflags & TH_FIN)) &&
         TCPS_HAVERCVDFIN(tp->t_state) == 0) {
-        TCP_REASS(tp, ti, m, so, tiflags);
+
+        /*
+         * segment is the next to be received on an established
+         * connection, and the queue is empty, avoid linkage into and
+         * removal from the queue and repetition of various
+         * conversions from tcp_reass().
+         */
+        if (ti->ti_seq == tp->rcv_nxt && tcpfrag_list_empty(tp) &&
+            tp->t_state == TCPS_ESTABLISHED) {
+            tp->t_flags |= TF_DELACK;
+            tp->rcv_nxt += ti->ti_len;
+            tiflags = ti->ti_flags & TH_FIN;
+            if (so->so_emu) {
+                if (tcp_emu(so, m))
+                    sbappend(so, m);
+            } else
+                sbappend(so, m);
+        } else {
+            tiflags = tcp_reass(tp, ti, m);
+            tp->t_flags |= TF_ACKNOW;
+        }
     } else {
         m_free(m);
         tiflags &= ~TH_FIN;

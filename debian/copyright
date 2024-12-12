@@ -1,4 +1,4 @@
-Format: https://dep.debian.net/deps/dep5
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: libslirp
 Source: https://gitlab.freedesktop.org/slirp/libslirp
 
