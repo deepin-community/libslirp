@@ -1,3 +1,16 @@
+libslirp (4.8.0-1deepin3) unstable; urgency=medium
+
+  * fix(cve): CVE-2026-95508 (high) - [PATCH] dhcpv6: bound the reply
+    against the interface MTU   Upstream:
+    https://gitlab.freedesktop.org/slirp/libslirp/-
+    /commit/97f2dd0afea0db8b31135f768ecafe0775722a25
+  * fix(cve): CVE-2026-95507 (unknown) - [PATCH] ncsi: bounds-check OEM
+    command bodies before dereferencing them   Upstream:
+    https://gitlab.freedesktop.org/slirp/libslirp/-
+    /commit/b4b2b07812fcadd2754281e5ae8d9fe2bfb3c96a.patch
+
+ -- deepin-ci-robot <packages@deepin.org>  Fri, 25 Sep 2026 06:06:56 +0800
+
 libslirp (4.8.0-1deepin2) unstable; urgency=medium
 
   * Rebuild with LTO enabled (dpkg vendor feature optimize/lto).
