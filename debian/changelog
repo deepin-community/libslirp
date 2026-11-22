@@ -1,3 +1,12 @@
+libslirp (4.8.0-1deepin4) unstable; urgency=medium
+
+  * fix(cve): CVE-2026-120830 (high) - icmp_forward_error: Fix Out-of-
+    Bounds Heap Read & Information Disclosure   Upstream:
+    https://gitlab.freedesktop.org/slirp/libslirp/-
+    /commit/21b33a6c5588af9f58d15e528fdc1019452708e4
+
+ -- deepin-ci-robot <packages@deepin.org>  Sun, 22 Nov 2026 22:05:18 +0800
+
 libslirp (4.8.0-1deepin3) unstable; urgency=medium
 
   * fix(cve): CVE-2026-95508 (high) - [PATCH] dhcpv6: bound the reply
