@@ -4,6 +4,10 @@ libslirp (4.8.0-1deepin4) unstable; urgency=medium
     Bounds Heap Read & Information Disclosure   Upstream:
     https://gitlab.freedesktop.org/slirp/libslirp/-
     /commit/21b33a6c5588af9f58d15e528fdc1019452708e4
+  * fix(cve): CVE-2026-120831 (medium) - if_output: Fix Queue Pointer
+    Corruption and Crash   Upstream:
+    https://gitlab.freedesktop.org/slirp/libslirp/-
+    /commit/bad35bd3b529dc47aa109980a69a36da7848ab76
 
  -- deepin-ci-robot <packages@deepin.org>  Sun, 22 Nov 2026 22:05:18 +0800
 
